@@ -178,7 +178,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item => ({\n  json: {\n    competitor_id: item.json.competitor_id,\n    backlink_source_id: item.json.backlink_source_id,\n    source_url: item.json.source_url,\n    anchor_text: item.json.anchor_text,\n    first_seen_date: item.json.first_seen,\n    last_seen_date: item.json.last_visited,\n    status: 'ACTIVE',\n    is_analyzed: false\n  }\n}));"
+        "jsCode": "return items.map(item => ({\n  json: {\n    competitor_id: item.json.competitor_id,\n    backlink_source_id: item.json.backlink_source_id,\n    source_url: item.json.source_url,\n    nofollow: item.json.nofollow,\n    anchor_text: item.json.anchor_text,\n    first_seen_date: item.json.first_seen,\n    last_seen_date: item.json.last_visited,\n    status: 'ACTIVE',\n    is_analyzed: false\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -192,7 +192,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO competitor_backlinks (\n    competitor_id,\n    backlink_source_id,\n    source_url,\n    anchor_text,\n    first_seen_date,\n    last_seen_date,\n    status,\n    created_at,\n    updated_at,\n    is_analyzed\n)\nVALUES (\n    '{{ $json.competitor_id.trim() }}',\n    '{{ $json.backlink_source_id.trim() }}',\n    '{{ $json.source_url.replace(/'/g, \"''\") }}',\n    '{{ $json.anchor_text.replace(/'/g, \"''\") }}',\n    '{{ $json.first_seen_date }}',\n    '{{ $json.last_seen_date }}',\n    'ACTIVE',\n    NOW(),\n    NOW(),\n    false\n)\nON CONFLICT (competitor_id, backlink_source_id)\nDO UPDATE\nSET\n    last_seen_date = EXCLUDED.last_seen_date,\n    updated_at = NOW(),\n    status = 'ACTIVE';",
+        "query": "INSERT INTO competitor_backlinks (\n    competitor_id,\n    backlink_source_id,\n    source_url,\n    anchor_text,\n    first_seen_date,\n    last_seen_date,\n    nofollow,\n    status,\n    created_at,\n    updated_at,\n    is_analyzed\n)\nVALUES (\n    '{{ $json.competitor_id.trim() }}',\n    '{{ $json.backlink_source_id.trim() }}',\n    '{{ $json.source_url.replace(/'/g, \"''\") }}',\n    '{{ $json.anchor_text.replace(/'/g, \"''\") }}',\n      NOW(),\n       NOW(),\n  {{ $json.nofollow }},\n    'ACTIVE',\n    NOW(),\n    NOW(),\n    false\n)\nON CONFLICT (competitor_id, backlink_source_id)\nDO UPDATE\nSET\n    last_seen_date = EXCLUDED.last_seen_date,\n    updated_at = NOW(),\n    status = 'ACTIVE';",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -352,7 +352,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "d15968be-3e4c-43a7-8385-8a63f7db39fa",
+  "versionId": "0ec159e3-df88-4e81-9bc5-e1d49d338c87",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
