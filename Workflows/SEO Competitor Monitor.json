@@ -1,0 +1,363 @@
+{
+  "name": "SEO Competitor Monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        -128
+      ],
+      "id": "5b3513a0-d85a-4f0c-b2ac-8bb37efbb4c2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM competitors\nWHERE status='ACTIVE';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -144,
+        -128
+      ],
+      "id": "47b3c6d8-8d25-40b7-8068-00cd97124208",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        64,
+        -128
+      ],
+      "id": "f1284b24-9709-4c68-8a05-ae2a09ed5109",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const backlinks = $json.backlinks || [];\n\nreturn backlinks.map(link => ({\n  json: {\n    competitor_domain: $('Loop Over Items').item.json.domain,\n\n    source_domain: link.url_from\n      .replace('https://', '')\n      .replace('http://', '')\n      .split('/')[0],\n\n    source_url: link.url_from,\n    target_url: link.url_to,\n    anchor_text: link.anchor,\n\n    nofollow: link.nofollow,\n\n    inlink_rank: link.inlink_rank,\n    domain_inlink_rank: link.domain_inlink_rank,\n\n    first_seen: link.first_seen,\n    last_visited: link.last_visited,\n\n    category: 'UNKNOWN'\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -112
+      ],
+      "id": "f2226520-548b-462e-9d8f-867567d6e5dd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO backlink_sources (\n    source_domain,\n    domain_rating,\n    category,\n    created_at\n)\nVALUES (\n    '{{ $json.source_domain }}',\n    {{ $json.domain_inlink_rank }},\n    '{{ $json.category }}',\n    NOW()\n)\nON CONFLICT (source_domain)\nDO UPDATE\nSET source_domain = EXCLUDED.source_domain\nRETURNING id AS backlink_source_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        816,
+        -256
+      ],
+      "id": "bb741a0c-5bd3-41de-a724-29411b17cc3c",
+      "name": "Execute a SQL query1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.seranking.com/v1/backlinks/all",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "8622deac-f253-15ad-f426-ee9cf8a5b523"
+            },
+            {
+              "name": "target",
+              "value": "={{$json.domain}}"
+            },
+            {
+              "name": "mode",
+              "value": "domain"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            },
+            {
+              "name": "per_domain",
+              "value": "1"
+            },
+            {
+              "name": "output",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        272,
+        -128
+      ],
+      "id": "2b17d567-6184-4a66-a806-0520b1de3064",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1056,
+        -80
+      ],
+      "id": "a853e8f8-8dbe-4b0f-adbe-22a2ef615035",
+      "name": "Merge",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS competitor_id\nFROM competitors\nWHERE domain = '{{ $json.competitor_domain }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1280,
+        -256
+      ],
+      "id": "f27f2cf4-56c9-4b68-88e2-1f345bbb3362",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1456,
+        -96
+      ],
+      "id": "1516eb8f-8dd7-47c9-b5ec-946bf93799f9",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => ({\n  json: {\n    competitor_id: item.json.competitor_id,\n    backlink_source_id: item.json.backlink_source_id,\n    source_url: item.json.source_url,\n    anchor_text: item.json.anchor_text,\n    first_seen_date: item.json.first_seen,\n    last_seen_date: item.json.last_visited,\n    status: 'ACTIVE',\n    is_analyzed: false\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        -96
+      ],
+      "id": "ba6a9333-7434-4087-a3ee-1c0443b38007",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO competitor_backlinks (\n    competitor_id,\n    backlink_source_id,\n    source_url,\n    anchor_text,\n    first_seen_date,\n    last_seen_date,\n    status,\n    created_at,\n    updated_at,\n    is_analyzed\n)\nVALUES (\n    '{{ $json.competitor_id.trim() }}',\n    '{{ $json.backlink_source_id.trim() }}',\n    '{{ $json.source_url.replace(/'/g, \"''\") }}',\n    '{{ $json.anchor_text.replace(/'/g, \"''\") }}',\n    '{{ $json.first_seen_date }}',\n    '{{ $json.last_seen_date }}',\n    'ACTIVE',\n    NOW(),\n    NOW(),\n    false\n)\nON CONFLICT (competitor_id, backlink_source_id)\nDO UPDATE\nSET\n    last_seen_date = EXCLUDED.last_seen_date,\n    updated_at = NOW(),\n    status = 'ACTIVE';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2160,
+        -112
+      ],
+      "id": "26e1fd34-3e3d-4da8-9b64-123d47933d89",
+      "name": "Execute a SQL query3",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d15968be-3e4c-43a7-8385-8a63f7db39fa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
+  },
+  "nodeGroups": [],
+  "id": "RFPrt9WKp4yJfm9t",
+  "tags": []
+}
