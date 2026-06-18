@@ -48,41 +48,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const backlinks = $json.backlinks || [];\n\nreturn backlinks.map(link => ({\n  json: {\n    competitor_domain: $('Loop Over Items').item.json.domain,\n\n    source_domain: link.url_from\n      .replace('https://', '')\n      .replace('http://', '')\n      .split('/')[0],\n\n    source_url: link.url_from,\n    target_url: link.url_to,\n    anchor_text: link.anchor,\n\n    nofollow: link.nofollow,\n\n    inlink_rank: link.inlink_rank,\n    domain_inlink_rank: link.domain_inlink_rank,\n\n    first_seen: link.first_seen,\n    last_visited: link.last_visited,\n\n    category: 'UNKNOWN'\n  }\n}));"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        528,
-        -112
-      ],
-      "id": "f2226520-548b-462e-9d8f-867567d6e5dd",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO backlink_sources (\n    source_domain,\n    domain_rating,\n    category,\n    created_at\n)\nVALUES (\n    '{{ $json.source_domain }}',\n    {{ $json.domain_inlink_rank }},\n    '{{ $json.category }}',\n    NOW()\n)\nON CONFLICT (source_domain)\nDO UPDATE\nSET source_domain = EXCLUDED.source_domain\nRETURNING id AS backlink_source_id;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        816,
-        -256
-      ],
-      "id": "bb741a0c-5bd3-41de-a724-29411b17cc3c",
-      "name": "Execute a SQL query1",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "3GeEA1N4qEdDeEAq",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "url": "https://api.seranking.com/v1/backlinks/all",
         "sendQuery": true,
         "queryParameters": {
@@ -118,42 +83,70 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        272,
-        -128
+        320,
+        -112
       ],
       "id": "2b17d567-6184-4a66-a806-0520b1de3064",
       "name": "HTTP Request"
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
+        "jsCode": "return $input.first().json.backlinks.map(backlink => ({\n  competitor_id: $('Loop Over Items').item.json.id,\n  competitor_domain: $('Loop Over Items').item.json.domain,\n\n  url_from: backlink.url_from,\n  url_to: backlink.url_to,\n  title: backlink.title,\n  anchor: backlink.anchor,\n  alt: backlink.alt,\n  nofollow: backlink.nofollow,\n  image: backlink.image,\n  image_source: backlink.image_source,\n  inlink_rank: backlink.inlink_rank,\n  domain_inlink_rank: backlink.domain_inlink_rank,\n  first_seen: backlink.first_seen,\n  last_visited: backlink.last_visited\n}));"
       },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1056,
-        -80
+        544,
+        -112
       ],
-      "id": "a853e8f8-8dbe-4b0f-adbe-22a2ef615035",
-      "name": "Merge",
+      "id": "c7ff2f34-f916-42ee-bbd4-c2a0d3568588",
+      "name": "Align Backlinks data",
       "alwaysOutputData": true
     },
     {
       "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const urlFrom = ($json.url_from || \"\").trim();\nconst urlTo = ($json.url_to || \"\").trim();\nconst anchor = ($json.anchor || \"\").trim();\nconst dr = Number($json.domain_inlink_rank || 0);\n\n// Rule 1\nif (dr < 30) return null;\n\n// Rule 2\nif (!urlFrom) return null;\n\n// Rule 3\nif (!urlTo) return null;\n\n// Rule 4\nif (!anchor) return null;\n\n// Rule 5\nif (\n    anchor.length < 2 ||\n    anchor.toLowerCase() === \"source\" ||\n    anchor.toLowerCase() === \"website\" ||\n    anchor.toLowerCase() === \"click here\" ||\n    anchor === \"[1]\"\n) {\n    return null;\n}\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -96
+      ],
+      "id": "f2226520-548b-462e-9d8f-867567d6e5dd",
+      "name": "Backlink Validation fixing",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const url = ($json.url_from || '').trim();\n\nif (!url) return null;\n\nconst source_domain = url\n  .replace(/^https?:\\/\\//i, '')\n  .replace(/^www\\./i, '')\n  .split('/')[0]\n  .toLowerCase();\n\nreturn {\n  ...$json,\n  source_domain\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -288
+      ],
+      "id": "2afb6e76-bcf5-43d1-8171-1e275f775ea9",
+      "name": "Generate Source Domain"
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id AS competitor_id\nFROM competitors\nWHERE domain = '{{ $json.competitor_domain }}';",
+        "query": "INSERT INTO backlink_sources\n(\n    source_domain,\n    domain_rating,\n    created_at\n)\nVALUES\n(\n    '{{ $json.source_domain }}',\n    {{ $json.domain_inlink_rank }},\n    NOW()\n)\nON CONFLICT (source_domain)\nDO UPDATE\nSET\n    domain_rating = EXCLUDED.domain_rating\nRETURNING id AS backlink_source_id;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1280,
-        -256
+        1152,
+        -288
       ],
-      "id": "f27f2cf4-56c9-4b68-88e2-1f345bbb3362",
-      "name": "Execute a SQL query2",
+      "id": "bb741a0c-5bd3-41de-a724-29411b17cc3c",
+      "name": "Insert Backlink_Sources",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "3GeEA1N4qEdDeEAq",
@@ -170,29 +163,31 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1456,
-        -96
+        1392,
+        -112
       ],
-      "id": "1516eb8f-8dd7-47c9-b5ec-946bf93799f9",
-      "name": "Merge1"
+      "id": "a853e8f8-8dbe-4b0f-adbe-22a2ef615035",
+      "name": "Merge 1 : SE Rank Data + Backlink Source ID",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item => ({\n  json: {\n    competitor_id: item.json.competitor_id,\n    backlink_source_id: item.json.backlink_source_id,\n    source_url: item.json.source_url,\n    nofollow: item.json.nofollow,\n    anchor_text: item.json.anchor_text,\n    first_seen_date: item.json.first_seen,\n    last_seen_date: item.json.last_visited,\n    status: 'ACTIVE',\n    is_analyzed: false\n  }\n}));"
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  competitor_id: $json.competitor_id,\n  backlink_source_id: $json.backlink_source_id,\n\n  source_url: $json.url_from,\n  anchor_text: $json.anchor,\n\n  nofollow: $json.nofollow,\n\n  first_seen_date: $json.first_seen,\n  last_seen_date: $json.last_visited,\n\n  is_analyzed: false,\n  status: 'PENDING'\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1664,
-        -96
+        1824,
+        -112
       ],
       "id": "ba6a9333-7434-4087-a3ee-1c0443b38007",
-      "name": "Code in JavaScript1"
+      "name": "Align Data for storing competitor_backlinks"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO competitor_backlinks (\n    competitor_id,\n    backlink_source_id,\n    source_url,\n    anchor_text,\n    first_seen_date,\n    last_seen_date,\n    nofollow,\n    status,\n    created_at,\n    updated_at,\n    is_analyzed\n)\nVALUES (\n    '{{ $json.competitor_id.trim() }}',\n    '{{ $json.backlink_source_id.trim() }}',\n    '{{ $json.source_url.replace(/'/g, \"''\") }}',\n    '{{ $json.anchor_text.replace(/'/g, \"''\") }}',\n      NOW(),\n       NOW(),\n  {{ $json.nofollow }},\n    'ACTIVE',\n    NOW(),\n    NOW(),\n    false\n)\nON CONFLICT (competitor_id, backlink_source_id)\nDO UPDATE\nSET\n    last_seen_date = EXCLUDED.last_seen_date,\n    updated_at = NOW(),\n    status = 'ACTIVE';",
+        "query": "INSERT INTO competitor_backlinks (\n    competitor_id,\n    backlink_source_id,\n    source_url,\n    anchor_text,\n    nofollow,\n    first_seen_date,\n    last_seen_date,\n    is_analyzed,\n    status,\n    created_at,\n    updated_at\n)\nVALUES (\n    '{{ $json.competitor_id }}',\n    '{{ $json.backlink_source_id }}',\n    '{{ $json.source_url }}',\n    '{{ $json.anchor_text.replace(/'/g, \"''\") }}',\n    {{ $json.nofollow }},\n    '{{ $json.first_seen_date }}',\n    '{{ $json.last_seen_date }}',\n    {{ $json.is_analyzed }},\n    '{{ $json.status }}'::backlinkstatus,\n    NOW(),\n    NOW()\n)\nON CONFLICT (competitor_id, backlink_source_id)\nDO NOTHING;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -202,7 +197,7 @@
         -112
       ],
       "id": "26e1fd34-3e3d-4da8-9b64-123d47933d89",
-      "name": "Execute a SQL query3",
+      "name": "Insert competitor_backlinks data",
       "credentials": {
         "postgres": {
           "id": "3GeEA1N4qEdDeEAq",
@@ -247,94 +242,89 @@
         ]
       ]
     },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "Execute a SQL query1",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Execute a SQL query1": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "HTTP Request": {
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Align Backlinks data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge": {
+    "Align Backlinks data": {
       "main": [
         [
           {
-            "node": "Execute a SQL query2",
+            "node": "Backlink Validation fixing",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Backlink Validation fixing": {
+      "main": [
+        [
           {
-            "node": "Merge1",
+            "node": "Merge 1 : SE Rank Data + Backlink Source ID",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "Execute a SQL query2": {
-      "main": [
-        [
+          },
           {
-            "node": "Merge1",
+            "node": "Generate Source Domain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge1": {
+    "Generate Source Domain": {
       "main": [
         [
           {
-            "node": "Code in JavaScript1",
+            "node": "Insert Backlink_Sources",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript1": {
+    "Insert Backlink_Sources": {
       "main": [
         [
           {
-            "node": "Execute a SQL query3",
+            "node": "Merge 1 : SE Rank Data + Backlink Source ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute a SQL query3": {
+    "Merge 1 : SE Rank Data + Backlink Source ID": {
+      "main": [
+        [
+          {
+            "node": "Align Data for storing competitor_backlinks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Align Data for storing competitor_backlinks": {
+      "main": [
+        [
+          {
+            "node": "Insert competitor_backlinks data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert competitor_backlinks data": {
       "main": [
         [
           {
@@ -352,7 +342,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "0ec159e3-df88-4e81-9bc5-e1d49d338c87",
+  "versionId": "a3548205-3fca-471c-b2df-d86ebeaee3a4",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
