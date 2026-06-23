@@ -1,0 +1,502 @@
+{
+  "name": "Agent 2 - Backlink Analyzer Method 2",
+  "nodes": [
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        640
+      ],
+      "id": "5d2e2ff4-a8cd-4179-88a3-2cd6a22e3401",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "QdtvuPWIMh3sq75Y",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  competitor_backlink_id: $json.competitor_backlinks_id,\n\n  source_domain: $json.source_domain,\n  domain_rating: $json.domain_rating,\n\n  authority_score: $json.authority_score,\n\n  relevance_score: $json.relevance_score,\n\n  spam_score: $json.spam_score,\n\n  opportunity_score: $json.opportunity_score,\n\n  link_type: $json.link_type,\n\n  relevance_reason: $json.relevance,\n\n  recommendation: $json.recommendation,\n\n  analyzed_at: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        -16
+      ],
+      "id": "3b90a56f-e730-4336-81b4-f8c87a30aee0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH analysis_insert AS (\n\n    INSERT INTO backlink_analysis (\n        competitor_backlink_id,\n        source_domain,\n        domain_rating,\n        relevance_score,\n        authority_score,\n        spam_score,\n        opportunity_score,\n        link_type,\n        recommendation,\n        analyzed_at\n    )\n    VALUES (\n        '{{ $json.competitor_backlink_id }}',\n        '{{ $json.source_domain }}',\n        {{ $json.domain_rating }},\n        {{ $json.relevance_score }},\n        {{ $json.authority_score }},\n        {{ $json.spam_score }},\n        {{ $json.opportunity_score }},\n        '{{ $json.link_type }}',\n        '{{ $json.recommendation.replace(/'/g, \"''\") }}',\n        '{{ $json.analyzed_at }}'\n    )\n\n    ON CONFLICT (competitor_backlink_id)\n    DO UPDATE SET\n        source_domain = EXCLUDED.source_domain,\n        domain_rating = EXCLUDED.domain_rating,\n        relevance_score = EXCLUDED.relevance_score,\n        authority_score = EXCLUDED.authority_score,\n        spam_score = EXCLUDED.spam_score,\n        opportunity_score = EXCLUDED.opportunity_score,\n        link_type = EXCLUDED.link_type,\n        recommendation = EXCLUDED.recommendation,\n        analyzed_at = EXCLUDED.analyzed_at\n\n    RETURNING competitor_backlink_id\n)\n\nUPDATE competitor_backlinks\nSET\n    is_analyzed = true,\n    updated_at = NOW()\nWHERE id IN (\n    SELECT competitor_backlink_id\n    FROM analysis_insert\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2880,
+        -16
+      ],
+      "id": "3f4abbed-48be-4020-be50-ce284fc89a50",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2448,
+        -16
+      ],
+      "id": "5fbea099-a6e8-4554-bffa-2075a418d2be",
+      "name": "Merge",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $('Fetch competitor_backlinks data').item.json;\n\nconst dr = row.domain_rating;\n\nlet authority_score = 0;\n\nif (dr >= 80) {\n  authority_score = 90;\n}\nelse if (dr >= 60) {\n  authority_score = 75;\n}\nelse if (dr >= 40) {\n  authority_score = 60;\n}\nelse if (dr >= 20) {\n  authority_score = 40;\n}\nelse {\n  authority_score = 20;\n}\n\nlet link_type = $json.nofollow\n  ? \"NOFOLLOW\"\n  : \"DOFOLLOW\";\n\nlet opportunity_score = authority_score;\n\nif (!($json.nofollow)) {\n  opportunity_score += 10;\n}\n\nopportunity_score = Math.min(opportunity_score, 100);\n\nreturn {\n  ...$('Fetch competitor_backlinks data').item.json,\n\n  authority_score,\n\n  opportunity_score,\n\n  link_type\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -16
+      ],
+      "id": "1e5aad84-d85d-469d-8663-d9ca93089492",
+      "name": "Calculate Scores"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        0
+      ],
+      "id": "e4d5b777-71b0-4098-af74-a783cbc807d8",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Evaluate backlinks.\n\nInput:\n\n{{ JSON.stringify($json.backlinks) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an SEO backlink evaluator.\n\nRelevant:\nAI\nSaaS\nAutomation\nSoftware\nCloud\nMobile\nEnterprise\n\nReturn ONLY JSON.\n\nFormat:\n\n{\n  \"results\":[\n    [index,relevance_score,spam_score]\n  ]\n}\n\nExample:\n\n{\n  \"results\":[\n    [0,85,10],\n    [1,40,50]\n  ]\n}\n\nNo explanations.\nNo text."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1536,
+        96
+      ],
+      "id": "cce237bd-d5a5-4f76-bc8d-e05f9b38a610",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"results\": [\n    [\n      0,\n      0,\n      0\n    ]\n  ]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1600,
+        400
+      ],
+      "id": "b7c201e1-0ee8-4514-a6c7-fc48e8eda218",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const backlinks = $input.all().map((item, index) => ([\n    index,\n    item.json.domain_rating,\n    item.json.anchor_text\n]));\n\nconst uuidMap = $input.all().map((item, index) => ({\n    index,\n    id: item.json.competitor_backlinks_id\n}));\n\nreturn [{\n    json: {\n        backlinks,\n        uuidMap\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        96
+      ],
+      "id": "2a426971-fc76-4e2a-987e-d0365b3a2754",
+      "name": "Prepare For LLM"
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmResults = $json.output.results;\n\nconst uuidMap = $('Prepare For LLM').first().json.uuidMap;\n\nreturn llmResults.map(row => {\n\n  const index = row[0];\n\n  const mapping = uuidMap.find(\n    x => x.index === index\n  );\n\n  return {\n    json: {\n      competitor_backlinks_id: mapping?.id || null,\n      relevance_score: row[1],\n      spam_score: row[2]\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        96
+      ],
+      "id": "7ded8394-55ae-44b8-b2bd-51b78f125122",
+      "name": "Restore UUID"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n\n    const relevance =\n        item.json.relevance_score;\n\n    const spam =\n        item.json.spam_score;\n\n    let recommendation;\n\n    if(relevance >= 80 && spam <= 20)\n        recommendation = \"KEEP\";\n\n    else if(relevance >= 60 && spam <= 40)\n        recommendation = \"KEEP_MONITOR\";\n\n    else if(relevance >= 40 && spam <= 60)\n        recommendation = \"MONITOR\";\n\n    else if(spam > 60 && spam <= 80)\n        recommendation = \"REVIEW\";\n\n    else\n        recommendation = \"DISAVOW\";\n\n    return {\n        json:{\n            ...item.json,\n            recommendation\n        }\n    };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        96
+      ],
+      "id": "f91e6691-9524-40c4-a298-2e1d5c5880ac",
+      "name": "Calculate Recommendation"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    cb.id AS competitor_backlinks_id,\n    cb.competitor_id,\n\n    c.company_name,\n\n    cb.source_url,\n    cb.anchor_text,\n    cb.nofollow,\n\n    bs.source_domain,\n    bs.domain_rating\n\nFROM competitor_backlinks cb\n\nJOIN competitors c\nON c.id = cb.competitor_id\n\nJOIN backlink_sources bs\nON bs.id = cb.backlink_source_id\n\nWHERE cb.is_analyzed = false\n\nORDER BY cb.created_at",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        288,
+        0
+      ],
+      "id": "cfbd9bb4-86ac-4274-881e-d3bddadf091e",
+      "name": "Fetch competitor_backlinks data",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "846ed50b-5024-49d8-bb56-dde38b287124",
+              "leftValue": "={{ $items(\"Fetch competitor_backlinks data\").length > 0 }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "5ed28573-8233-40c0-96a6-d7da1a206e3c",
+      "name": "If",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: false,\n    status: \"LLM_FAILED\",\n    error: $json.error?.message || \"Unknown LLM Error\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        640
+      ],
+      "id": "3af3e364-1627-4e33-9e3c-669a730b703c",
+      "name": "LLM Error Handling"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log($input.first());\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3216,
+        112
+      ],
+      "id": "a7cd50d6-6e71-4168-970a-5c06793c983f",
+      "name": "DB Error Handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: true,\n    status: \"SUCCESS\",\n    processed: $input.all().length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        -32
+      ],
+      "id": "8c053c01-3e44-4349-9b14-0c77f531f78e",
+      "name": "Success Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n    success:false,\n    error:\"No backlinks found\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        576
+      ],
+      "id": "6fb9b22c-a305-4330-8cbc-358e13eaedd2",
+      "name": "No Backlinks"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Scores": {
+      "main": [
+        [
+          {
+            "node": "Prepare For LLM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Fetch competitor_backlinks data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Restore UUID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Error Handling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare For LLM": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore UUID": {
+      "main": [
+        [
+          {
+            "node": "Calculate Recommendation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Recommendation": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Fetch competitor_backlinks data": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Calculate Scores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Backlinks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Backlinks": {
+      "main": [
+        []
+      ]
+    },
+    "LLM Error Handling": {
+      "main": [
+        []
+      ]
+    },
+    "DB Error Handler": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "90acc847-6a2e-4c31-b6e4-836ad44be0e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
+  },
+  "nodeGroups": [],
+  "id": "fP8BxykKjaZzJie7",
+  "tags": []
+}
