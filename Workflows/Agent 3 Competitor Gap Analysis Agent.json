@@ -94,7 +94,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n    c.company_name AS competitor,\n\n    bs.source_domain AS backlink_domain,\n\n    cb.source_url,\n\n    cb.anchor_text,\n\n    ba.domain_rating,\n\n    ba.authority_score,\n\n    ba.link_type,\n\n    ba.recommendation,\n\n\n    bo.domain_rating_score,\n\n    bo.relevance_score,\n\n    bo.difficulty_score,\n\n    bo.final_score,\n\n    bo.priority,\n\n    bo.suggested_action\n\nFROM backlink_opportunities bo\n\nJOIN backlink_analysis ba\nON bo.analysis_id = ba.id\n\nJOIN competitor_backlinks cb\nON ba.competitor_backlink_id = cb.id\n\nJOIN competitors c\nON cb.competitor_id = c.id\n\nJOIN backlink_sources bs\nON cb.backlink_source_id = bs.id\n\nWHERE\n    DATE(bo.created_at) = CURRENT_DATE\n    AND bo.priority IN ('HIGH','MEDIUM')\n\nORDER BY\nCASE\n    WHEN bo.priority='HIGH' THEN 1\n    WHEN bo.priority='MEDIUM' THEN 2\nEND,\nbo.final_score DESC;",
+        "query": "SELECT\n    c.company_name AS competitor,\n\n    bs.source_domain AS backlink_domain,\n\n    cb.source_url,\n\n    cb.anchor_text,\n\n    ba.domain_rating,\n\n    ba.authority_score,\n\n    ba.link_type,\n\n    ba.recommendation,\n\n    bo.domain_rating_score,\n\n    bo.relevance_score,\n\n    bo.difficulty_score,\n\n    bo.final_score,\n\n    bo.priority,\n\n    bo.suggested_action\n\nFROM backlink_opportunities bo\n\nJOIN backlink_analysis ba\nON bo.analysis_id = ba.id\n\nJOIN competitor_backlinks cb\nON ba.competitor_backlink_id = cb.id\n\nJOIN competitors c\nON cb.competitor_id = c.id\n\nJOIN backlink_sources bs\nON cb.backlink_source_id = bs.id\n\nWHERE\n    DATE(bo.created_at) = CURRENT_DATE\n    AND bo.priority IN ('HIGH','MEDIUM')\n    AND ba.domain_rating > 60\n\nORDER BY\nCASE\n    WHEN bo.priority='HIGH' THEN 1\n    WHEN bo.priority='MEDIUM' THEN 2\nEND,\nbo.final_score DESC;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -258,7 +258,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "206403d1-25e0-44f5-9f46-293ad4f67cb5",
+  "versionId": "ea924e6d-7587-46b2-8dfd-df3715eebb88",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
