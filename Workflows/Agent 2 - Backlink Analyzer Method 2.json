@@ -186,18 +186,19 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n    cb.id AS competitor_backlinks_id,\n    cb.competitor_id,\n\n    c.company_name,\n\n    cb.source_url,\n    cb.anchor_text,\n    cb.nofollow,\n\n    bs.source_domain,\n    bs.domain_rating\n\nFROM competitor_backlinks cb\n\nJOIN competitors c\nON c.id = cb.competitor_id\n\nJOIN backlink_sources bs\nON bs.id = cb.backlink_source_id\n\nWHERE cb.is_analyzed = false\n\nORDER BY cb.created_at",
+        "query": "SELECT\n    cb.id AS competitor_backlinks_id,\n    cb.competitor_id,\n\n    c.company_name,\n\n    cb.source_url,\n    cb.anchor_text,\n    cb.nofollow,\n\n    bs.source_domain,\n    bs.domain_rating\n\nFROM competitor_backlinks cb\n\nJOIN competitors c\n    ON c.id = cb.competitor_id\n\nJOIN backlink_sources bs\n    ON bs.id = cb.backlink_source_id\n\nWHERE\n    cb.is_analyzed = false\n    AND cb.last_seen_date::DATE = CURRENT_DATE\n\nORDER BY\n    cb.created_at;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        288,
+        416,
         0
       ],
       "id": "cfbd9bb4-86ac-4274-881e-d3bddadf091e",
       "name": "Fetch competitor_backlinks data",
       "alwaysOutputData": true,
+      "executeOnce": true,
       "credentials": {
         "postgres": {
           "id": "3GeEA1N4qEdDeEAq",
@@ -291,6 +292,19 @@
       ],
       "id": "6fb9b22c-a305-4330-8cbc-358e13eaedd2",
       "name": "No Backlinks"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {}\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        0
+      ],
+      "id": "6d00b1d0-d91c-4f0d-9c5b-ed2318466361",
+      "name": "Code in JavaScript1"
     }
   ],
   "pinData": {},
@@ -371,7 +385,7 @@
       "main": [
         [
           {
-            "node": "Fetch competitor_backlinks data",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -483,6 +497,17 @@
       "main": [
         []
       ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Fetch competitor_backlinks data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -491,7 +516,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "90acc847-6a2e-4c31-b6e4-836ad44be0e6",
+  "versionId": "e44ee981-39bb-4060-8a0b-804663f86763",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
