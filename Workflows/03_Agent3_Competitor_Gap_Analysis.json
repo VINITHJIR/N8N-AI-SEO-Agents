@@ -1,0 +1,680 @@
+{
+  "name": "Agent 3 Competitor Gap Analysis Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const authority = $json.authority_score;\nconst relevance = $json.relevance_score;\nconst spam = $json.spam_score;\n\nconst final_score =\nMath.round(\n(authority * 0.3) +\n(relevance * 0.5) -\n(spam * 0.2)\n);\n\nlet priority = \"LOW\";\nlet suggested_action = \"Ignore\";\n\nif(final_score >= 80){\n  priority = \"HIGH\";\n  suggested_action = \"Immediate Outreach\";\n}\nelse if(final_score >= 50){\n  priority = \"MEDIUM\";\n  suggested_action = \"Monitor & Outreach\";\n}\n\nreturn {\n  analysis_id: $json.analysis_id,\n\n  source_domain: $json.source_domain,\n  domain_rating: $json.domain_rating,\n\n  authority_score: authority,\n  relevance_score: relevance,\n  spam_score: spam,\n\n  domain_rating_score: authority,\n  difficulty_score: spam,\n\n  final_score,\n  priority,\n  suggested_action,\n\n  recommendation: $json.recommendation,\n  relevance_reason: $json.relevance_reason\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -256
+      ],
+      "id": "36ab48a6-3820-4868-9ce9-6fdbfefb4c45",
+      "name": "Calculate Final Score",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5d92fc7f-3d9c-459c-8cf9-3c08961251b9",
+              "leftValue": "={{ $json.priority }}",
+              "rightValue": "LOW",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "d49361e8-196b-425f-9ab1-3fe3131ab44b",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1392,
+        -272
+      ],
+      "id": "8c79cb37-e204-4e75-a768-8c44e07e1089",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO backlink_opportunities (\n    analysis_id,\n    domain_rating_score,\n    relevance_score,\n    difficulty_score,\n    final_score,\n    priority,\n    suggested_action,\n    created_at\n)\nVALUES (\n    '{{ $json.analysis_id }}',\n    {{ $json.domain_rating_score }},\n    {{ $json.relevance_score }},\n    {{ $json.difficulty_score }},\n    {{ $json.final_score }},\n    '{{ $json.priority }}',\n    '{{ $json.suggested_action }}',\n    NOW()\n)\nON CONFLICT (analysis_id)\nDO UPDATE SET\n    domain_rating_score = EXCLUDED.domain_rating_score,\n    relevance_score = EXCLUDED.relevance_score,\n    difficulty_score = EXCLUDED.difficulty_score,\n    final_score = EXCLUDED.final_score,\n    priority = EXCLUDED.priority,\n    suggested_action = EXCLUDED.suggested_action;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1824,
+        -288
+      ],
+      "id": "2b894c27-e2a2-40b8-bfc6-854bb81d5cf1",
+      "name": "Insert Backlink Oppourtunities",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    c.company_name AS competitor,\n\n    bs.source_domain AS backlink_domain,\n\n    cb.source_url,\n\n    cb.anchor_text,\n\n    ba.domain_rating,\n\n    ba.authority_score,\n\n    ba.link_type,\n\n    ba.recommendation,\n\n    bo.domain_rating_score,\n\n    bo.relevance_score,\n\n    bo.difficulty_score,\n\n    bo.final_score,\n\n    bo.priority,\n\n    bo.suggested_action\n\nFROM backlink_opportunities bo\n\nJOIN backlink_analysis ba\nON bo.analysis_id = ba.id\n\nJOIN competitor_backlinks cb\nON ba.competitor_backlink_id = cb.id\n\nJOIN competitors c\nON cb.competitor_id = c.id\n\nJOIN backlink_sources bs\nON cb.backlink_source_id = bs.id\n\nWHERE\n    DATE(bo.created_at) = CURRENT_DATE\n    AND bo.priority IN ('HIGH','MEDIUM')\n    AND ba.domain_rating > 60\n\nORDER BY\nCASE\n    WHEN bo.priority='HIGH' THEN 1\n    WHEN bo.priority='MEDIUM' THEN 2\nEND,\nbo.final_score DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2064,
+        -304
+      ],
+      "id": "d5c21b35-9a69-46d2-86f1-ec75922f07f4",
+      "name": "Fetch Backlink Oppourtunities",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "SEO Daily Report"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2336,
+        -320
+      ],
+      "id": "bbd7d8c2-c8e6-48a1-8ce6-f5661e620a8b",
+      "name": "Convert to File",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        -240
+      ],
+      "id": "da16433b-5f48-408e-a88e-8e6d8c1ea6fb",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    ba.id AS analysis_id,\n    ba.competitor_backlink_id,\n\n    ba.source_domain,\n    ba.domain_rating,\n\n    ba.authority_score,\n    ba.relevance_score,\n    ba.spam_score,\n    ba.opportunity_score,\n\n    ba.link_type,\n\n    ba.recommendation,\n\n    ba.analyzed_at\n\nFROM backlink_analysis ba\n\nLEFT JOIN backlink_opportunities bo\nON ba.id = bo.analysis_id\n\nWHERE\n    bo.id IS NULL\n    AND DATE(ba.analyzed_at) = CURRENT_DATE;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        -240
+      ],
+      "id": "ed4ee4d8-592b-47bd-8c76-e7b5fb492b1a",
+      "name": "Fetch backlink_analysis",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n    json: {\n        success: false,\n        agent: \"Agent 3\",\n        failed_node: $json.failed_node,\n        error: $json.error,\n        timestamp: new Date().toISOString()\n    }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        256
+      ],
+      "id": "911ef0c2-4859-4665-9426-3c9c8bf3f5cf",
+      "name": "Error Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log($input.first());\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        160
+      ],
+      "id": "a0a40c6c-44e7-4a20-b0bd-a37ff2c50b6c",
+      "name": "DB Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n      success:false,\n      failed_node:\"Convert To Excel\",\n      error:$json.error?.message || \"Excel generation failed\",\n      time:new Date().toISOString()\n  }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        -112
+      ],
+      "id": "be3fb91f-435a-462f-b1c8-88a4f91266d4",
+      "name": "Excel Error Handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n      success:false,\n      failed_node:\"Send Gmail\",\n      error:$json.error?.message || \"Email sending failed\",\n      time:new Date().toISOString()\n  }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3408,
+        -112
+      ],
+      "id": "075c5ffe-4e29-46ac-8d30-7b4a733a310d",
+      "name": "Email Error Handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: true,\n    status: \"SUCCESS\",\n    processed: $input.all().length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        -336
+      ],
+      "id": "32dfc202-92c3-45fd-8e4b-65a10a306e31",
+      "name": "Success Response"
+    },
+    {
+      "parameters": {
+        "sendTo": "manikandanbtechit77@gmail.com",
+        "subject": "Daily Backlink Opportunity Report",
+        "message": "<h3>Daily Backlink Opportunity Report</h3>  <p>Hi Team,</p>  <p>Please find attached today's backlink opportunity report.</p>  <p>Regards,<br> SEO Backlink Monitoring Agent</p>",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2816,
+        -336
+      ],
+      "id": "ee59d6ae-d2e4-419b-b7ae-282d50cd0b07",
+      "name": "Send a message",
+      "webhookId": "bc205b8e-6709-40e5-a804-4105dcee127c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jJrMnvDRbNAj9zp1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_logs (\n\n    workflow_name,\n    recipient_email,\n    subject,\n    attachment_name,\n    status,\n    sent_at\n\n)\n\nVALUES (\n\n    'Agent 3 Competitor Gap Analysis Agent',\n\n    'manikandanbtechit77@gmail.com',\n\n    'Daily Backlink Opportunity Report',\n\n    'SEO_Backlink_Report.xlsx',\n\n    'SUCCESS',\n\n    NOW()\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3136,
+        -336
+      ],
+      "id": "1f35a936-d613-4a27-9e70-86f45cc0a90f",
+      "name": "Success Email log",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_logs(\n\nrecipient_email,\nsubject,\nstatus,\nattachment_name,\nsent_at,\nerror_message\n\n)\n\nVALUES(\n\n'manikandanbtechit77@gmail.com',\n\n'SEO Daily Report',\n\n'FAILED',\n\n'SEO Daily Report.xlsx',\n\nNOW(),\n\n'{{ $json.error }}'\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3136,
+        -112
+      ],
+      "id": "e0cdb430-2835-417e-a393-2a309ed9051f",
+      "name": "Fail Email log",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {}\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -240
+      ],
+      "id": "1d105c7d-0435-4e6b-9b58-1a1a56cbdd72",
+      "name": "Empty the request"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 3 Competitor Gap Analysis Agent',\n\n    'Agent 3',\n\n    'Fetch backlink_analysis',\n\n    'Fetch DB Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        864,
+        256
+      ],
+      "id": "822b5a2e-562e-4dd6-849d-d528c879734b",
+      "name": "Backlink_analysis DB Error",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 3 Competitor Gap Analysis Agent',\n\n    'Agent 3',\n\n    'Calculate Opportunity Score',\n\n    'Business Logic Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1232,
+        64
+      ],
+      "id": "3436e6e1-3e3a-44b5-839c-fb713e94de67",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n    json: {\n        success: false,\n        agent: \"Agent 3\",\n        failed_node: $json.failed_node,\n        error: $json.error,\n        timestamp: new Date().toISOString()\n    }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        240
+      ],
+      "id": "5fefc9a7-72b5-4704-927a-f5cd8c357a49",
+      "name": "Error Response1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 3 Competitor Gap Analysis Agent',\n\n    'Agent 3',\n\n    'Insert backlink_opportunities',\n\n    'Database Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1968,
+        160
+      ],
+      "id": "29a765fe-44f6-43d2-bdd4-7b99b10ce683",
+      "name": "Insert Opportunity Failure",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 3 Competitor Gap Analysis Agent,\n\n    'Agent 3',\n\n    'If CONDITION',\n\n    'Bcklink Analysis Empty',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        -32
+      ],
+      "id": "57b81753-0625-486e-bce5-60f9d44cc012",
+      "name": "Check Backlink Analysis Empty",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n    json: {\n        success: false,\n        agent: \"Agent 3\",\n        failed_node: $json.failed_node,\n        error: $json.error,\n        timestamp: new Date().toISOString()\n    }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        -32
+      ],
+      "id": "eefbf316-933d-4750-8093-834cda7cd71f",
+      "name": "Error Response2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'SEO Daily Workflow',\n\n    'Report Generator',\n\n    'Convert to XLSX',\n\n    'Excel Generation Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2544,
+        -112
+      ],
+      "id": "258fb52a-bb01-4f3f-b129-16c86e9ec8ee",
+      "name": "Excel Generator Error log",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Calculate Final Score": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Insert Backlink Oppourtunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Backlink Analysis Empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Backlink Oppourtunities": {
+      "main": [
+        [
+          {
+            "node": "Fetch Backlink Oppourtunities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Opportunity Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Backlink Oppourtunities": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Excel Generator Error log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Empty the request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch backlink_analysis": {
+      "main": [
+        [
+          {
+            "node": "Calculate Final Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Backlink_analysis DB Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Fail Email log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Success Email log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Email log": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fail Email log": {
+      "main": [
+        [
+          {
+            "node": "Email Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty the request": {
+      "main": [
+        [
+          {
+            "node": "Fetch backlink_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backlink_analysis DB Error": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Error Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Opportunity Failure": {
+      "main": [
+        [
+          {
+            "node": "DB Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Backlink Analysis Empty": {
+      "main": [
+        [
+          {
+            "node": "Error Response2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excel Generator Error log": {
+      "main": [
+        [
+          {
+            "node": "Excel Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c4429621-b55c-45eb-9068-dc75812306e2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"
+  },
+  "nodeGroups": [],
+  "id": "E7XLplSZJQOzx7Un",
+  "tags": []
+}

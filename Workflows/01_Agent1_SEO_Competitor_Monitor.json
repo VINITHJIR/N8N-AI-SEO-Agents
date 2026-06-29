@@ -3,27 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT *\nFROM competitors\nWHERE status='ACTIVE';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        64,
-        -128
-      ],
-      "id": "47b3c6d8-8d25-40b7-8068-00cd97124208",
-      "name": "Execute a SQL query",
-      "credentials": {
-        "postgres": {
-          "id": "3GeEA1N4qEdDeEAq",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "options": {}
       },
       "type": "n8n-nodes-base.splitInBatches",
@@ -72,11 +51,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        736,
+        592,
         -112
       ],
       "id": "2b17d567-6184-4a66-a806-0520b1de3064",
-      "name": "HTTP Request"
+      "name": "HTTP Request",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -85,8 +65,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        -112
+        992,
+        -128
       ],
       "id": "c7ff2f34-f916-42ee-bbd4-c2a0d3568588",
       "name": "Align Backlinks data",
@@ -101,7 +81,7 @@
       "typeVersion": 2,
       "position": [
         1168,
-        -112
+        -128
       ],
       "id": "f2226520-548b-462e-9d8f-867567d6e5dd",
       "name": "Backlink Validation fixing",
@@ -116,7 +96,7 @@
       "typeVersion": 2,
       "position": [
         1360,
-        -288
+        -320
       ],
       "id": "2afb6e76-bcf5-43d1-8171-1e275f775ea9",
       "name": "Generate Source Domain"
@@ -131,7 +111,7 @@
       "typeVersion": 2.6,
       "position": [
         1568,
-        -288
+        -320
       ],
       "id": "bb741a0c-5bd3-41de-a724-29411b17cc3c",
       "name": "Insert Backlink_Sources",
@@ -141,7 +121,8 @@
           "id": "3GeEA1N4qEdDeEAq",
           "name": "Postgres account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -153,7 +134,7 @@
       "typeVersion": 3.2,
       "position": [
         1808,
-        -128
+        -144
       ],
       "id": "a853e8f8-8dbe-4b0f-adbe-22a2ef615035",
       "name": "Merge 1 : SE Rank Data + Backlink Source ID",
@@ -168,7 +149,7 @@
       "typeVersion": 2,
       "position": [
         2080,
-        -128
+        -144
       ],
       "id": "ba6a9333-7434-4087-a3ee-1c0443b38007",
       "name": "Align Data for storing competitor_backlinks"
@@ -182,8 +163,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2352,
-        -128
+        2608,
+        128
       ],
       "id": "26e1fd34-3e3d-4da8-9b64-123d47933d89",
       "name": "Insert competitor_backlinks data",
@@ -192,7 +173,8 @@
           "id": "3GeEA1N4qEdDeEAq",
           "name": "Postgres account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -237,11 +219,12 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1712,
-        -688
+        1376,
+        -736
       ],
       "id": "6111724c-50df-4547-a784-6da8afabd3ea",
-      "name": "Call 'Agent 3 Competitor Gap Analysis Agent'"
+      "name": "Call 'Agent 3 Competitor Gap Analysis Agent'",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -250,7 +233,7 @@
           "value": "fP8BxykKjaZzJie7",
           "mode": "list",
           "cachedResultUrl": "/workflow/fP8BxykKjaZzJie7",
-          "cachedResultName": "Agent 2 - Backlink Analyzer Method 2"
+          "cachedResultName": "Agent 2 - Backlink Analyzer"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -267,8 +250,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        880,
-        -432
+        864,
+        -448
       ],
       "id": "b65d1ff4-aa55-45eb-8290-128cc59bc929",
       "name": "Call 'Agent 2 - Backlink Analyzer Method 2'",
@@ -304,8 +287,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1136,
-        -480
+        1152,
+        -448
       ],
       "id": "eb6df86c-6bbc-442a-a19d-f0972fdea06d",
       "name": "If"
@@ -317,8 +300,8 @@
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        2432,
-        -496
+        2240,
+        -432
       ],
       "id": "d4d88963-5444-4711-bfc3-ca8e160952c8",
       "name": "Stop and Error"
@@ -330,11 +313,105 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1664,
-        -480
+        1696,
+        -432
       ],
       "id": "3f2b8ccb-0ba4-4f1f-aec4-cccc0ad498d8",
       "name": "Agent2 Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    success: true,\n    status: \"SUCCESS\",\n    processed: $input.all().length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -752
+      ],
+      "id": "893853b4-cabf-457c-b358-4b0f8faab8fd",
+      "name": "Success Response"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Agent 3 failed"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        -576
+      ],
+      "id": "55a5793c-b644-4000-b706-723a39944c6b",
+      "name": "Stop and Error1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 1 SEO Competitor Monitor',\n\n    'Agent 1',\n\n    'Http Request',\n\n    'API Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        944,
+        80
+      ],
+      "id": "d649c7e3-2102-4d9d-bad3-6be10758d6f7",
+      "name": "Backlink API Error",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n    status:\"FAILED\",\n    failed_agent:\"Agent1\",\n    reason:$json.error || \"Unknown Error\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -304
+      ],
+      "id": "62212fe1-7958-4369-a458-c9d6457016f1",
+      "name": "Backlink Insert Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n    status:\"FAILED\",\n    failed_agent:\"Agent1\",\n    reason:$json.error || \"Unknown Error\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        80
+      ],
+      "id": "0594ff89-5c66-4015-967d-95eb63a86775",
+      "name": "Backlink Get From SE Ranking"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM competitors\nWHERE status='ACTIVE';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        64,
+        -128
+      ],
+      "id": "47b3c6d8-8d25-40b7-8068-00cd97124208",
+      "name": "Fetch Competitors",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
@@ -344,30 +421,74 @@
       "typeVersion": 2,
       "position": [
         464,
-        -400
+        -448
       ],
       "id": "350803d5-257d-4a65-a2ac-34ddc1fb94aa",
-      "name": "Code in JavaScript"
+      "name": "Convert Empty List"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json:{\n    status:\"FAILED\",\n    failed_agent:\"Agent1\",\n    reason:$json.error || \"Unknown Error\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        144
+      ],
+      "id": "4f440615-904b-4a97-93a6-15a6cbd58c9a",
+      "name": "Insert Backlinks_Competitor Error"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'Agent 1 SEO Competitor Monitor',\n\n    'Agent 1',\n\n    'Insert competitor_backlinks',\n\n    'Database Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2976,
+        144
+      ],
+      "id": "158cb1e6-3544-436d-b2ba-d11a10eb868a",
+      "name": "Error Log for Insert competitor_backlinks",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO error_logs (\n\n    workflow_name,\n    agent_name,\n    node_name,\n    error_type,\n    error_message,\n    input_data\n\n)\n\nVALUES (\n\n    'SEO Daily Workflow',\n\n    'Agent 1',\n\n    'Insert Backlinks Sources',\n\n    'Database Error',\n\n    '{{ $json.error }}',\n\n    '{{ JSON.stringify($json).replace(/''/g,\"''\") }}'::jsonb\n\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2032,
+        -304
+      ],
+      "id": "9f12d3a7-3d9e-4e5c-b102-8cd82ba4d142",
+      "name": "Insert Log for Insert Backlink Sources",
+      "credentials": {
+        "postgres": {
+          "id": "3GeEA1N4qEdDeEAq",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Execute a SQL query": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Loop Over Items": {
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Convert Empty List",
             "type": "main",
             "index": 0
           }
@@ -386,6 +507,13 @@
         [
           {
             "node": "Align Backlinks data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Backlink API Error",
             "type": "main",
             "index": 0
           }
@@ -438,6 +566,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Insert Log for Insert Backlink Sources",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -471,6 +606,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Error Log for Insert competitor_backlinks",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -478,7 +620,7 @@
       "main": [
         [
           {
-            "node": "Execute a SQL query",
+            "node": "Fetch Competitors",
             "type": "main",
             "index": 0
           }
@@ -525,11 +667,73 @@
         ]
       ]
     },
-    "Code in JavaScript": {
+    "Call 'Agent 3 Competitor Gap Analysis Agent'": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backlink API Error": {
+      "main": [
+        [
+          {
+            "node": "Backlink Get From SE Ranking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Competitors": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Empty List": {
       "main": [
         [
           {
             "node": "Call 'Agent 2 - Backlink Analyzer Method 2'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Log for Insert competitor_backlinks": {
+      "main": [
+        [
+          {
+            "node": "Insert Backlinks_Competitor Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Log for Insert Backlink Sources": {
+      "main": [
+        [
+          {
+            "node": "Backlink Insert Error",
             "type": "main",
             "index": 0
           }
@@ -546,7 +750,7 @@
     "timezone": "Asia/Kolkata",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "774dd4e4-5036-401a-a411-c931a01b420b",
+  "versionId": "3571b9b6-35aa-419f-93dc-d5ea7edf2d01",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e3bbb2ca9db600b2da7ddb3b953b0326776f0644d9dd665fd09e137c2f47001"

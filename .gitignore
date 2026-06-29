@@ -1,5 +1,40 @@
+# Environment Variables
 .env
-venv/
-node_modules/
-__pycache__/
+.env.*
+
+# Logs
 *.log
+
+# Node.js
+node_modules/
+
+# VS Code
+.vscode/
+
+# JetBrains IDE
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+*.db
+*.sqlite
+
+# Temporary Files
+temp/
+tmp/
+
+# n8n Backup Files
+*.bak
+
+# OS Files
+*.swp
