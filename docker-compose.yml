@@ -1,0 +1,53 @@
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: seo-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+    networks:
+      - ai_seo_network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: seo-n8n
+
+    ports:
+      - "${N8N_PORT}:5678"
+
+    environment:
+      N8N_HOST: ${N8N_HOST}
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      TZ: ${TZ}
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+    restart: unless-stopped
+
+    networks:
+      - ai_seo_network
+
+    depends_on:
+      - postgres
+
+volumes:
+    postgres_data:
+    n8n_data:
+
+networks:
+    ai_seo_network:
+     driver: bridge 

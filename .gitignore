@@ -1,40 +1,46 @@
-# Environment Variables
+# ============================
+# Environment Files
+# ============================
 .env
-.env.*
 
-# Logs
-*.log
+# ============================
+# Python
+# ============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+env/
 
-# Node.js
-node_modules/
-
+# ============================
 # VS Code
+# ============================
 .vscode/
 
-# JetBrains IDE
-.idea/
-
-# macOS
+# ============================
+# Operating System
+# ============================
 .DS_Store
-
-# Windows
 Thumbs.db
-Desktop.ini
 
-# Python
-__pycache__/
-*.pyc
+# ============================
+# Docker
+# ============================
+docker-data/
+postgres_data/
+n8n_data/
 
-# Database
-*.db
-*.sqlite
+# ============================
+# Logs
+# ============================
+*.log
 
+# ============================
 # Temporary Files
-temp/
-tmp/
-
-# n8n Backup Files
+# ============================
+*.tmp
 *.bak
-
-# OS Files
 *.swp
